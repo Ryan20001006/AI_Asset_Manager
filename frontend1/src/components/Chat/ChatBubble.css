@@ -1,0 +1,25 @@
+/* 氣泡基礎設定 */
+.bubble {
+  padding: 12px 18px;
+  max-width: 85%;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  position: relative;
+  word-wrap: break-word;
+}
+
+/* AI (Agent) 的樣式 */
+.bubble.agent {
+  background: #f8fafc;
+  color: var(--text-primary); /* 這裡會自動讀取 App.css 定義的變數 */
+  border-radius: 18px 18px 18px 2px; /* 左下角直角 */
+  border: 1px solid var(--border-color);
+}
+
+/* 使用者 (User) 的樣式 */
+.bubble.user {
+  background: var(--primary-gradient); /* 自動讀取漸層變數 */
+  color: white;
+  border-radius: 18px 18px 2px 18px; /* 右下角直角 */
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}

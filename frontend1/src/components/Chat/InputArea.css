@@ -1,0 +1,53 @@
+/* 輸入區域美化 */
+.input-area {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.input-area input {
+  flex: 1;
+  padding: 14px 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 25px;
+  outline: none;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background-color: #f8fafc;
+  color: #333;
+}
+
+.input-area input:focus {
+  border-color: var(--primary-color);
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.input-area button {
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+}
+
+.input-area button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(99, 102, 241, 0.4);
+}
+
+.input-area button:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
