@@ -4,7 +4,6 @@ import pandas as pd
 import json
 import altair as alt
 
-#BACKEND_URL = "http://localhost:8000"
 
 st.set_page_config(layout="wide", page_title="Stock AI Agent")
 def set_ticker(symbol):
@@ -30,21 +29,20 @@ if 'auto_run_analysis' not in st.session_state:
 with st.sidebar:
     st.header("Control Panel")
     
-    # 新增：資料來源選擇器
+
     st.header("Data Source")
     data_source = st.radio(
-    "",  # 標籤移到上面的 markdown
+    "",  
     ("Yahoo Finance (4 Years Historical)", "Alpha Vantage (5 Years Historical)"),
     help="Choose your preferred financial data source."
 )
     
-    # 根據選擇決定連線的 Port
     if data_source == "Yahoo Finance (4 Years)":
         BACKEND_URL = "http://localhost:8000"
     else:
         BACKEND_URL = "http://localhost:8001"
 
-    st.success(f"目前連線: {data_source}")
+    st.success(f"Current Source: {data_source}")
     st.divider()
     # 1. 輸入框
     current_input = st.text_input("", value="", key="ticker_input").upper()
@@ -78,41 +76,10 @@ with st.sidebar:
 
     
   
-tab1, tab2, tab3, tab4 = st.tabs(["Financial stats", "Investment memo", "Ask AI", "Charts"])
+tab1, tab2, tab3, tab4 = st.tabs(["Investment memo", "Financial stats", "Ask AI", "Charts"])
 
 
 with tab1:
-    st.subheader(f"{ticker} Fundamental Data")
-    
-    should_run = False
-    
-        
-    if st.session_state.get('auto_run_analysis'):
-        should_run = True
-        st.session_state.auto_run_analysis = False  
-
-    if should_run:
-        with st.spinner(f"Downloading {ticker} data..."):
-            try:
-                payload = {"ticker": ticker}
-                response = session.post(f"{BACKEND_URL}/api/analyze", json=payload)
-                
-                if response.status_code == 200:
-                    data = response.json().get("data", [])
-                    if data:
-                        df = pd.DataFrame(data)
-                        st.session_state['fundamental_df'] = df
-                        display_cols = ['ReportYear', 'Category', 'RatioName', 'RatioValue', 'Formula']
-                        st.dataframe(df[display_cols], use_container_width=True)
-                    else:
-                        st.warning("No data found")
-                else:
-                    st.error(f"API error: {response.text}")
-            except Exception as e:
-                st.error(f"Connection fail: {e}")
-
-
-with tab2:
     st.subheader(f"{ticker} Investment memo")
     
     col1, col2 = st.columns([1, 1])
@@ -148,6 +115,37 @@ with tab2:
     except:
         st.write("Failed to connect to database")
 
+with tab2:
+    st.subheader(f"{ticker} Fundamental Finance Data")
+    
+    should_run = False
+    
+        
+    if st.session_state.get('auto_run_analysis'):
+        should_run = True
+        st.session_state.auto_run_analysis = False  
+
+    if should_run:
+        with st.spinner(f"Downloading {ticker} data..."):
+            try:
+                payload = {"ticker": ticker}
+                response = session.post(f"{BACKEND_URL}/api/analyze", json=payload)
+                
+                if response.status_code == 200:
+                    data = response.json().get("data", [])
+                    if data:
+                        df = pd.DataFrame(data)
+                        st.session_state['fundamental_df'] = df
+                        display_cols = ['ReportYear', 'Category', 'RatioName', 'RatioValue', 'Formula']
+                        st.dataframe(df[display_cols], use_container_width=True)
+                    else:
+                        st.warning("No data found")
+                else:
+                    st.error(f"API error: {response.text}")
+            except Exception as e:
+                st.error(f"Connection fail: {e}")
+
+            
 with tab3:
     st.subheader("Ask BDFGPT")
 

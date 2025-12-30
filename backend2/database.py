@@ -24,7 +24,7 @@ def create_fundamental_tables():
     );''')
     
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS CalculatedRatios (
+    CREATE TABLE IF NOT EXISTS FinancialRatios (
         sno INTEGER PRIMARY KEY AUTOINCREMENT,
         Stock_Id TEXT, ReportYear INT, Category TEXT, RatioName TEXT, RatioValue REAL, Formula TEXT,
         UNIQUE(Stock_Id, ReportYear, RatioName)
