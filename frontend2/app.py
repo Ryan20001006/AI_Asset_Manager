@@ -6,8 +6,13 @@ import altair as alt
 
 
 st.set_page_config(layout="wide", page_title="Stock AI Agent")
+
+if 'active_symbol' not in st.session_state:
+    st.session_state.active_symbol = None
+
 def set_ticker(symbol):
     st.session_state.ticker_input = symbol  
+    st.session_state.active_symbol = symbol
     st.session_state.auto_run_analysis = True     
     st.session_state.search_results = []
 
@@ -63,16 +68,20 @@ with st.sidebar:
 
     if 'search_results' in st.session_state and st.session_state.search_results:
         st.caption("Select a company:")
-        for item in st.session_state.search_results:
+        for i, item in enumerate(st.session_state.search_results):
             st.markdown(f"**{item['symbol']}** - {item['name']}")
             st.button(
                 f"Analyze {item['symbol']}", 
-                key=f"btn_{item['symbol']}", 
+                key=f"btn_{item['symbol']}_{i}", 
                 on_click=set_ticker,      
                 args=(item['symbol'], )   
             )
             st.divider()
-    ticker = current_input
+    ticker = st.session_state.active_symbol
+
+    if not ticker:
+        st.info("Please search and select a stock from the sidebar")
+        st.stop()
 
     
   
