@@ -6,94 +6,58 @@ from google.adk.runners import InMemoryRunner
 from google.adk.tools import google_search, AgentTool, ToolContext, FunctionTool 
 
 
-chat_session = None
+import google.generativeai as genai
+from config import settings
+import traceback
+import re
+
+# ==========================================
+# 0. 初始化設定
+# ==========================================
+try:
+    if settings.GOOGLE_API_KEY:
+        genai.configure(api_key=settings.GOOGLE_API_KEY)
+    else:
+        print("⚠️ Warning: GOOGLE_API_KEY not found in settings.")
+except Exception as e:
+    print(f"⚠️ Failed to configure Gemini: {e}")
 
 def get_chat_session():
-    """確保有一個活著的對話 Session"""
-    global chat_session
-    if chat_session is None:
-        # 初始化一個有記憶的模型
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        chat_session = model.start_chat(history=[])
-    return chat_session
+    """建立對話 Session"""
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    return model.start_chat(history=[])
 
 def extract_ticker_from_text(text: str):
-    """Agent 耳朵：增強版意圖識別"""
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    prompt = f"""
-    Role: Financial Extraction Engine
-    Task: Extract ticker from input. Support Chinese.
-    Input: "{text}"
-    Output: ONLY the ticker (e.g. SHEL.L, AAPL). If none, output NONE.
+    """從對話中提取股票代號"""
+    if not text: return "NONE"
+    match = re.search(r'\b[A-Z]{2,5}\b', text.upper())
+    return match.group(0) if match else "NONE"
+
+def generate_investment_memo(ticker: str, context: str):
     """
+    產生投資備忘錄 (被 stock.py 呼叫)
+    """
+    print(f"🤖 [AI Service] Generating memo for {ticker}...")
+    if not settings.GOOGLE_API_KEY:
+        return "❌ Error: GOOGLE_API_KEY missing."
+
     try:
-        return model.generate_content(prompt).text.strip()
-    except:
-        return "NONE"
-    
-async def run_ai_analysis_agent(stock_id, summary, comparison_markdown):
-    print(f"--- AI Agent: Analyzing News for {stock_id} ---")
-    google_news_agent = Agent(
-        name="GoogleNewsAgent",
-        model="gemini-2.5-flash",
-        instruction="""You are a specialized news arrangement agent for a given company. 
-    
-        For a given company:
-        1. Use 'google_search' to find the company's summary.
-        2. Read the company's summary and then use 'google_search' to find current related news that would affect the company's stock price.
-        3. Generate comment with important points and analysis about the company's stock future performance base on the news.
-        """,
-        tools = [google_search],
-        output_key="google_news_arrangement",
-    )
-    
-    news_runner = InMemoryRunner(agent=google_news_agent)
-    news_prompt = f"""{stock_id} summary: 
-    {summary}"""
-    
-    news_response = await news_runner.run_debug(news_prompt)
-    news_text = "News analysis failed or no output generated."
-    try:
-        for event in news_response:
-            if event.actions and event.actions.state_delta and "google_news_arrangement" in event.actions.state_delta:
-                news_text = event.actions.state_delta["google_news_arrangement"]
-                break 
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        prompt = f"""
+        You are a professional investment analyst.
+        Target: {ticker}
+        
+        Data Context:
+        {context}
+        
+        Task: Write a structured investment memo (Markdown).
+        Include: Company Overview, Financial Health (Profitability, Growth, Leverage), and Investment Verdict.
+        """
+        response = model.generate_content(prompt)
+        return response.text if response and response.text else "AI returned empty content."
     except Exception as e:
-        print(f"Error parsing news output: {e}")
-        news_text = str(news_response) 
-
-    print(f"--- AI Agent: Analyzing Competitors for {stock_id} ---")
-    competitors_agent = Agent(
-        name="CompetitorsAgent",
-        model="gemini-2.5-flash",
-        instruction="""You are a specialized agent to compare the target company to its competitors.
-
-        For a given company:
-        1. Use 'competitors_compare' to get the target company and its main competitors' financial ratio data.
-        2. Check the "status" field in it response for errors.
-        3. Aanlyse the financial ratio data, summarize the most important points and provide some insights that might affect the target companies' 
-        stock price.
-    
-        If any tool returns status "error", explain the issue to the user clearly.""",
-            #tools = [competitors_compare],
-        output_key="comparing_competitors",
-    )
-
-    comp_runner = InMemoryRunner(agent=competitors_agent)
-    comp_prompt = f"""Please analyze the following financial data for {stock_id} and its competitors:\n\n{comparison_markdown}"""
-    
-    comp_response = await comp_runner.run_debug(comp_prompt)
-    comp_text = "Competitor analysis failed or no output generated."
-    try:
-        for event in comp_response:
-            if event.actions and event.actions.state_delta and "comparing_competitors" in event.actions.state_delta:
-                comp_text = event.actions.state_delta["comparing_competitors"]
-                break
-    except Exception as e:
-        print(f"Error parsing competitor output: {e}")
-        comp_text = str(comp_response)
-
-    return str(news_text), str(comp_text)
+        traceback.print_exc()
+        return f"AI Generation Failed: {str(e)}"
 
 
 

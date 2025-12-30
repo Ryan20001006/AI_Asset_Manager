@@ -9,6 +9,7 @@ def create_fundamental_tables():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # 1. 公司基本資訊
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS CompanyInfo (
         sno INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,6 +17,7 @@ def create_fundamental_tables():
         UNIQUE(Stock_Id, DataKey, QueryDate)
     );''')
     
+    # 2. 財報數據
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS FinancialStatements (
         sno INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,6 +25,7 @@ def create_fundamental_tables():
         UNIQUE(Stock_Id, StatementType, Item, ReportDate)
     );''')
     
+    # 3. 財務比率
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS FinancialRatios (
         sno INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,15 +33,18 @@ def create_fundamental_tables():
         UNIQUE(Stock_Id, ReportYear, RatioName)
     );''')
     
+    # 4. AI 分析報告 (統一使用這張表)
+    # AnalysisContent 將包含完整的 Markdown 報告
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS AIReports (
+    CREATE TABLE IF NOT EXISTS AI_Analysis (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         Stock_Id TEXT,
         ReportDate DATE,
-        NewsAnalysis TEXT,
-        CompetitorAnalysis TEXT,
-        PRIMARY KEY (Stock_Id, ReportDate)
+        AnalysisContent TEXT,
+        CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(Stock_Id, ReportDate)
     );''')
 
     conn.commit()
     conn.close()
-    pass
+    print("✅ 資料庫表格初始化完成 (Standardized tables created)")

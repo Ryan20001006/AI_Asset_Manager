@@ -89,30 +89,32 @@ tab1, tab2, tab3, tab4 = st.tabs(["Investment memo", "Financial stats", "Ask AI"
 
 
 with tab1:
-    st.subheader(f"{ticker} Investment memo")
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        if st.button("generate AI investment memo", key="btn_ai"):
-            with st.spinner("Reading report and financial statement..."):
-                try:
-                    response = session.post(f"{BACKEND_URL}/api/analyze_ai/{ticker}")
-                    if response.status_code == 200:
-                        st.success("memo generated")
-                        st.rerun() 
-                    else:
-                        st.error(f"failed: {response.text}")
-                except Exception as e:
-                    st.error(f"connection failed: {e}")
-    try:
-        report_res = session.get(f"{BACKEND_URL}/api/get_ai_report/{ticker}")
-        if report_res.status_code == 200:
-            report_data = report_res.json()
-            if "news_analysis" in report_data:
-                st.info(f"Report Date: {report_data.get('date', 'Unknown')}")
+    st.subheader(f"{ticker} Investment Memo")
+
+    if st.button("✨ Generate New AI Memo ", key="btn_ai_gen"):
+        with st.spinner(f"AI is analyzing {ticker} ... (Please wait 10-20s)"):
+            try:
+                response = session.post(f"{BACKEND_URL}/api/analyze_ai/{ticker}")
                 
-                st.markdown("### News and Market Perspective")
+                if response.status_code == 200:
+                    st.success("Analysis Complete!")
+                    st.rerun() 
+                else:
+                    st.error(f"Analysis failed: {response.text}")
+            except Exception as e:
+                st.error(f"Connection failed: {e}")
+
+    st.divider()
+
+    try:
+        res = session.get(f"{BACKEND_URL}/api/get_ai_report/{ticker}")
+        if res.status_code == 200:
+            report_data = res.json()
+            
+            if "news_analysis" in report_data:
+                st.caption(f"Last Updated: {report_data.get('date', 'Unknown')}")
+                
+                st.markdown("### News & Market Perspective")
                 st.markdown(report_data['news_analysis'])
                 
                 st.markdown("---")
@@ -120,9 +122,12 @@ with tab1:
                 st.markdown("### Competitor Analysis")
                 st.markdown(report_data['competitor_analysis'])
             else:
-                st.write("No report generated")
-    except:
-        st.write("Failed to connect to database")
+                st.info("No report found. Click the button above to generate one.")
+        else:
+            st.info("No report found. Click the button above to generate one.")
+            
+    except Exception as e:
+        st.error(f"Failed to load report: {e}")
 
 with tab2:
     st.subheader(f"{ticker} Fundamental Finance Data")
