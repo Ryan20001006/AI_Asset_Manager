@@ -1,7 +1,7 @@
 #股票相關 API
 from fastapi import APIRouter, HTTPException
 from schemas import StockRequest
-from services.data_service import download_and_store_fundamentals, calculate_financial_ratios, get_db_connection, get_competitor_dataframe_markdown, search_symbol_alpha_vantage
+from services.data_service import download_and_store_fundamentals, calculate_financial_ratios, get_db_connection, get_competitor_dataframe_markdown
 from services.ai_service import run_ai_analysis_agent
 import pandas as pd
 import datetime as dt

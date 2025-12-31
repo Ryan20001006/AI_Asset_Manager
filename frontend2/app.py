@@ -42,7 +42,7 @@ with st.sidebar:
     help="Choose your preferred financial data source."
 )
     
-    if data_source == "Yahoo Finance (4 Years)":
+    if data_source == "Yahoo Finance (4 Years Historical)":
         BACKEND_URL = "http://localhost:8000"
     else:
         BACKEND_URL = "http://localhost:8001"
@@ -117,10 +117,10 @@ with tab1:
                 st.markdown("### News & Market Perspective")
                 st.markdown(report_data['news_analysis'])
                 
-                st.markdown("---")
+                #st.markdown("---")
                 
-                st.markdown("### Competitor Analysis")
-                st.markdown(report_data['competitor_analysis'])
+                #st.markdown("### Competitor Analysis")
+                #st.markdown(report_data['competitor_analysis'])
             else:
                 st.info("No report found. Click the button above to generate one.")
         else:
@@ -132,6 +132,10 @@ with tab1:
 with tab2:
     st.subheader(f"{ticker} Fundamental Finance Data")
     
+    if st.button(f"Download {ticker} Data", key="btn_fetch_data"):
+        st.session_state.auto_run_analysis = True
+        st.rerun()
+
     should_run = False
     
         

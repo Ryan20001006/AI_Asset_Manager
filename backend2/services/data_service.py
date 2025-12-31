@@ -8,9 +8,6 @@ import traceback
 from database import get_db_connection
 from config import settings
 
-# ========================================================
-# 1. 核心工具：安全數值轉換
-# ========================================================
 def safe_float(val, debug_name=""):
     """防止 'None', 'null' 等字串導致 crash"""
     if val is None: return 0.0
@@ -21,9 +18,6 @@ def safe_float(val, debug_name=""):
     except:
         return 0.0
 
-# ========================================================
-# 2. 下載與儲存 (Alpha Vantage 版本)
-# ========================================================
 AV_MAPPING = {
     "totalRevenue": "Total Revenue",
     "grossProfit": "Gross Profit",
@@ -57,8 +51,6 @@ def download_and_store_fundamentals(stock_id):
     try:
         cursor = conn.cursor()
         today = dt.date.today().strftime('%Y-%m-%d')
-        
-        # --- A. 下載即時股價 (GLOBAL_QUOTE) ---
         url_quote = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={stock_id}&apikey={api_key}"
         r_quote = requests.get(url_quote).json()
         current_price = safe_float(r_quote.get("Global Quote", {}).get("05. price"))
@@ -66,8 +58,6 @@ def download_and_store_fundamentals(stock_id):
         info_data = []
         if current_price > 0:
             info_data.append((stock_id, today, 'currentPrice', str(current_price)))
-
-        # --- B. 下載基本面 (OVERVIEW) ---
         url_overview = f"https://www.alphavantage.co/query?function=OVERVIEW&symbol={stock_id}&apikey={api_key}"
         r_overview = requests.get(url_overview).json()
         
@@ -86,7 +76,6 @@ def download_and_store_fundamentals(stock_id):
             if val and str(val) != 'None':
                 info_data.append((stock_id, today, db_key, str(val)))
         
-        # 補充計算 Gross Margin TTM
         rev_ttm = safe_float(r_overview.get('RevenueTTM'))
         gp_ttm = safe_float(r_overview.get('GrossProfitTTM'))
         if rev_ttm != 0:
@@ -94,13 +83,13 @@ def download_and_store_fundamentals(stock_id):
 
         cursor.executemany('INSERT OR IGNORE INTO CompanyInfo (Stock_Id, QueryDate, DataKey, DataValue) VALUES (?, ?, ?, ?)', info_data)
 
-        # --- C. 下載三大報表 (5年數據) ---
         functions = {'Income': 'INCOME_STATEMENT', 'BalanceSheet': 'BALANCE_SHEET', 'CashFlow': 'CASH_FLOW'}
         all_stmt_data = []
 
         for stmt_type, func_name in functions.items():
             url = f"https://www.alphavantage.co/query?function={func_name}&symbol={stock_id}&apikey={api_key}"
             r = requests.get(url).json()
+            print(f"🔍 [{stmt_type}] API 回應: {str(r)[:200]}...")
             time.sleep(1) # API Rate Limit 保護
             
             reports = r.get('annualReports', [])
@@ -108,8 +97,6 @@ def download_and_store_fundamentals(stock_id):
                 
             for report in reports:
                 report_date = report.get('fiscalDateEnding')
-                
-                # 手動計算欄位
                 if stmt_type == 'BalanceSheet':
                     short = safe_float(report.get('shortTermDebt'))
                     long_d = safe_float(report.get('longTermDebt'))
@@ -125,8 +112,6 @@ def download_and_store_fundamentals(stock_id):
                     op = safe_float(report.get('operatingCashflow'))
                     cap = safe_float(report.get('capitalExpenditures'))
                     all_stmt_data.append((stock_id, stmt_type, 'Free Cash Flow', report_date, op - cap))
-
-                # 一般欄位映射
                 for av_key, val in report.items():
                     if av_key in AV_MAPPING:
                         clean_val = safe_float(val)
@@ -146,9 +131,6 @@ def download_and_store_fundamentals(stock_id):
     finally:
         conn.close()
 
-# ========================================================
-# 3. 讀取資料庫 (通用)
-# ========================================================
 def get_dataframes_from_db(stock_id, conn):
     query = "SELECT StatementType, Item, ReportDate, Value FROM FinancialStatements WHERE Stock_Id = ?"
     df_all = pd.read_sql(query, conn, params=(stock_id,))
@@ -165,9 +147,6 @@ def get_dataframes_from_db(stock_id, conn):
 
     return get_pivot('Income'), get_pivot('BalanceSheet'), get_pivot('CashFlow')
 
-# ========================================================
-# 4. 計算財務比率 (純資料庫版 - 完整版)
-# ========================================================
 def calculate_financial_ratios(stock_id, conn):
     print(f"🧮 [Backend 2] 計算 {stock_id} 財務比率 (DB Mode)...")
     
@@ -178,7 +157,6 @@ def calculate_financial_ratios(stock_id, conn):
     ratios = []
     years = income.index
     
-    # 讀取 Price
     df_info = pd.read_sql("SELECT DataKey, DataValue FROM CompanyInfo WHERE Stock_Id = ?", conn, params=(stock_id,))
     info_dict = dict(zip(df_info['DataKey'], df_info['DataValue']))
     current_price = safe_float(info_dict.get('currentPrice', 0))
@@ -189,8 +167,7 @@ def calculate_financial_ratios(stock_id, conn):
                 if df is not None and item in df.columns and year in df.index:
                     return safe_float(df.loc[year, item])
                 return 0.0
-
-            # --- 取值 ---
+            
             rev = get_val(income, 'Total Revenue')
             net_income = get_val(income, 'Net Income')
             gross_profit = get_val(income, 'Gross Profit')
@@ -212,14 +189,12 @@ def calculate_financial_ratios(stock_id, conn):
             
             fcf = get_val(cash, 'Free Cash Flow')
 
-            # --- 1. 獲利能力 ---
             if equity: ratios.append((stock_id, year, 'Profitability', 'Return on Equity (ROE)', net_income / equity, 'Net Income / Equity'))
             if rev:
                 ratios.append((stock_id, year, 'Profitability', 'Gross Margin', gross_profit / rev, 'Gross Profit / Revenue'))
                 ratios.append((stock_id, year, 'Profitability', 'Operating Margin', op_income / rev, 'Operating Income / Revenue'))
                 ratios.append((stock_id, year, 'Profitability', 'Net Profit Margin', net_income / rev, 'Net Income / Revenue'))
 
-            # --- 2. 成長動能 ---
             prev_year = year - 1
             if prev_year in years:
                 prev_rev = get_val(income, 'Total Revenue')
@@ -232,13 +207,11 @@ def calculate_financial_ratios(stock_id, conn):
                 if prev_eps: ratios.append((stock_id, year, 'Growth', 'EPS Growth', (eps - prev_eps)/abs(prev_eps), 'YoY'))
                 if prev_fcf: ratios.append((stock_id, year, 'Growth', 'FCF Growth', (fcf - prev_fcf)/abs(prev_fcf), 'YoY'))
 
-            # --- 3. 槓桿與償債 ---
             if equity: ratios.append((stock_id, year, 'Leverage', 'Debt-to-Equity Ratio', total_debt / equity, 'Total Debt / Equity'))
             if curr_liab: ratios.append((stock_id, year, 'Leverage', 'Current Ratio', curr_assets / curr_liab, 'CA / CL'))
             if interest: ratios.append((stock_id, year, 'Leverage', 'Interest Coverage Ratio', op_income / interest, 'EBIT / Interest'))
             if ebitda: ratios.append((stock_id, year, 'Leverage', 'Net Debt / EBITDA', net_debt / ebitda, 'Net Debt / EBITDA'))
 
-            # --- 4. 經營效率 ---
             if total_assets: ratios.append((stock_id, year, 'Efficiency', 'Asset Turnover', rev / total_assets, 'Revenue / Total Assets'))
             if inventory: ratios.append((stock_id, year, 'Efficiency', 'Inventory Turnover', cost_of_rev / inventory, 'COGS / Inventory'))
             if receivables: ratios.append((stock_id, year, 'Efficiency', 'Receivables Turnover', rev / receivables, 'Revenue / AR'))
@@ -259,9 +232,6 @@ def calculate_financial_ratios(stock_id, conn):
     
     return False
 
-# ========================================================
-# 5. 搜尋功能 (Alpha Vantage 版本)
-# ========================================================
 def search_symbol_alpha_vantage(keyword: str):
     print(f"🔍 [Backend 2] Search: {keyword}")
     api_key = settings.ALPHA_VANTAGE_API_KEY
@@ -281,9 +251,7 @@ def search_symbol_alpha_vantage(keyword: str):
         print(f"搜尋錯誤: {e}")
         return []
 
-# ========================================================
-# 6. [新增] 競爭對手比較表
-# ========================================================
+
 def get_competitor_dataframe_markdown(ticker_list, conn):
     if not ticker_list:
         return "無競爭對手數據"

@@ -11,6 +11,7 @@ from services.data_service import (
 )
 from services.ai_service import generate_investment_memo
 import pandas as pd
+import numpy as np
 import datetime as dt
 
 router = APIRouter()
@@ -28,8 +29,9 @@ def analyze(req: StockRequest):
         calculate_financial_ratios(ticker, conn)
         
         # 讀取結果
-        df = pd.read_sql("SELECT * FROM CalculatedRatios WHERE Stock_Id = ?", conn, params=(ticker,))
-        
+        df = pd.read_sql("SELECT * FROM FinancialRatios WHERE Stock_Id = ?", conn, params=(ticker,))
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df = df.where(pd.notnull(df), None)
         return {"status": "success", "data": df.to_dict(orient="records")}
     finally:
         conn.close()
