@@ -9,11 +9,12 @@ from services.data_service import (
     search_symbol_alpha_vantage,
     get_context_str
 )
-from services.ai_service import generate_investment_memo
-from services.backtest_service import run_backtest
+from services.ai_service import generate_investment_memo, run_technical_agent
+from services.backtest_service import run_backtest 
 import pandas as pd
 import numpy as np
 import datetime as dt
+import yfinance as yf
 
 router = APIRouter()
 
@@ -122,3 +123,48 @@ def get_ai_report(stock_id: str):
 @router.get("/api/backtest/{ticker}")
 def backtest_stock(ticker: str):
     return run_backtest(ticker.upper())
+
+@router.get("/api/history/{ticker}")
+def get_stock_history(ticker: str, period: str = "2y"):
+    """
+    獲取每日股價歷史數據 (預設 2 年)
+    """
+    try:
+        ticker = ticker.upper()
+        # 使用 yfinance 抓取歷史數據
+        stock = yf.Ticker(ticker)
+        df = stock.history(period=period)
+        
+        if df.empty:
+            return {"status": "error", "message": "No data found"}
+        
+        # 整理數據格式給前端
+        df = df.reset_index()
+        df['Date'] = df['Date'].dt.strftime('%Y-%m-%d') # 轉成字串
+        
+        # 只取需要的欄位
+        data_list = []
+        for _, row in df.iterrows():
+            data_list.append({
+                "Date": row['Date'],
+                "Open": row['Open'],
+                "High": row['High'],
+                "Low": row['Low'],
+                "Close": row['Close'],
+                "Volume": row['Volume']
+            })
+            
+        return {"status": "success", "data": data_list}
+        
+    except Exception as e:
+        print(f"History Error: {e}")
+        return {"status": "error", "message": str(e)}
+    
+@router.post("/api/analyze_technical/{ticker}")
+async def analyze_technical(ticker: str):
+    try:
+        ticker = ticker.upper()
+        report = await run_technical_agent(ticker)
+        return {"status": "success", "report": report}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

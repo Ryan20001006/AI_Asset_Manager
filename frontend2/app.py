@@ -85,7 +85,7 @@ with st.sidebar:
 
     
   
-tab1, tab2, tab3, tab4 = st.tabs(["Investment memo", "Financial stats", "Ask AI", "Charts"])
+tab1, tab2, tab3, tab4, tab5= st.tabs(["Investment memo", "Financial stats", "Ask AI", "Charts", "Tech Analysis"])
 
 
 with tab1:
@@ -332,7 +332,56 @@ with tab4:
         st.info("💡 Please go to **Tab 1** or use the **Search** sidebar to fetch data first.")
     
     st.divider()
-    
+
+    st.subheader("🕯️ Daily Price History (Last 2 Years)")
+    price_hist_key = f"price_hist_{ticker}"
+
+    try:
+        with st.spinner("Loading price history..."):
+            hist_res = session.get(f"{BACKEND_URL}/api/history/{ticker}", params={"period": "2y"})
+            
+            if hist_res.status_code == 200:
+                hist_data = hist_res.json()
+                if hist_data.get("status") == "success":
+                    prices = hist_data.get("data", [])
+                    price_df = pd.DataFrame(prices)
+                    
+                    if not price_df.empty:
+                        # 建立 Altair 圖表
+                        # 上半部：股價線圖
+                        price_chart = alt.Chart(price_df).mark_line(color='#2962FF').encode(
+                            x=alt.X('Date:T', axis=alt.Axis(title='Date', format='%Y-%m')),
+                            y=alt.Y('Close:Q', scale=alt.Scale(zero=False), axis=alt.Axis(title='Price')),
+                            tooltip=['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+                        ).properties(
+                            height=300,
+                            title=f"{ticker} Close Price"
+                        )
+                        
+                        # 下半部：成交量棒狀圖
+                        vol_chart = alt.Chart(price_df).mark_bar(color='#cfd8dc').encode(
+                            x=alt.X('Date:T', axis=alt.Axis(labels=False)), # 隱藏 X 軸標籤以免重疊
+                            y=alt.Y('Volume:Q', axis=alt.Axis(title='Volume', format='.2s')),
+                            tooltip=['Date', 'Volume']
+                        ).properties(
+                            height=100
+                        )
+                        
+                        # 組合圖表 (上下排列)
+                        combined_chart = alt.vconcat(price_chart, vol_chart).resolve_scale(
+                            x='shared' # 共用 X 軸
+                        )
+                        
+                        st.altair_chart(combined_chart, use_container_width=True)
+                    else:
+                        st.warning("No price data available.")
+                else:
+                    st.warning(f"Could not load history: {hist_data.get('message')}")
+    except Exception as e:
+        st.error(f"Failed to load chart: {e}")
+
+    st.divider()
+
     st.subheader("🔙 5-Year Return Backtest (vs S&P 500)")
     
     if st.button("Run Backtest"):
@@ -375,5 +424,30 @@ with tab4:
                         st.error(f"Backtest failed: {bt_data.get('message')}")
                 else:
                     st.error("API Connection failed")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+with tab5:
+    st.subheader(f" {ticker} Technical Analysis Agent")
+    
+    st.markdown("""
+    > This agent uses **Moving Averages (MA)**, **Support & Resistance**, and **Backtesting** > to generate a trading signal (Buy/Sell/Hold).
+    """)
+    
+    if st.button("Run Technical Analysis", key="btn_tech"):
+        with st.spinner("Analyzing price patterns and trends..."):
+            try:
+                res = session.post(f"{BACKEND_URL}/api/analyze_technical/{ticker}")
+                if res.status_code == 200:
+                    data = res.json()
+                    if data.get("status") == "success":
+                        report = data.get("report")
+                        st.success("Analysis Complete!")
+                        st.markdown("### 📝 Technical Trade Note")
+                        st.markdown(report)
+                    else:
+                        st.error(f"Error: {data.get('message')}")
+                else:
+                    st.error("Connection failed")
             except Exception as e:
                 st.error(f"Error: {e}")
