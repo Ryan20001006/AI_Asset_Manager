@@ -11,9 +11,7 @@ from config import settings
 import traceback
 import re
 
-# ==========================================
-# 0. 初始化設定
-# ==========================================
+
 try:
     if settings.GOOGLE_API_KEY:
         genai.configure(api_key=settings.GOOGLE_API_KEY)

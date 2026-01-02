@@ -1,4 +1,4 @@
-#AI 對話相關 API
+#AI Agent API
 from fastapi import APIRouter
 from schemas import ChatRequest
 from services.ai_service import get_chat_session, extract_ticker_from_text
@@ -37,14 +37,10 @@ def agent_chat(req: ChatRequest):
         df = pd.read_sql("SELECT * FROM CalculatedRatios WHERE Stock_Id = ?", conn, params=(ticker,))
         conn.close()
         data_records = df.to_dict(orient="records")
-        
-        # 2. 執行進階估值 (未來)
+    
         dcf_report = run_advanced_valuation(ticker)
-        
-        # 3. AI 總結 (這一步最關鍵：我們將數據注入到對話 Session 中)
+
         context = get_context_str(ticker)
-        
-        # 這裡我們不建立新模型，而是將龐大的數據變成一個 Prompt，傳給有記憶的 Session
         final_prompt = f"""
         [System Update: New Market Data Loaded]
         Target Company: {ticker}
@@ -61,7 +57,6 @@ def agent_chat(req: ChatRequest):
         Note: Remember this data for future follow-up questions.
         """
         
-        # 傳送給有記憶的 Session
         response = session.send_message(final_prompt)
         
         return {

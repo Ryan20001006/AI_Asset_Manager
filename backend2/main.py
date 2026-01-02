@@ -19,7 +19,7 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     create_fundamental_tables()
-    print("\n🔥 目前註冊的 API 路由列表:")
+    print("\n Current API List:")
     for route in app.routes:
         print(f"   {route.methods}  {route.path}")
     print("----------------------------\n")

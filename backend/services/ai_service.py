@@ -73,6 +73,9 @@ async def run_ai_analysis_agent(stock_id, summary, comparison_markdown):
         2. Check the "status" field in it response for errors.
         3. Aanlyse the financial ratio data, summarize the most important points and provide some insights that might affect the target companies' 
         stock price.
+        4. Analyze the provided "Competitor Financial Ratios" data.
+        5. Analyze the provided "DCF Valuation Model" result.
+        6. Summarize the most important points, providing insights on whether the stock is undervalued or overvalued compared to peers and its intrinsic value.
     
         If any tool returns status "error", explain the issue to the user clearly.""",
             #tools = [competitors_compare],
@@ -80,7 +83,15 @@ async def run_ai_analysis_agent(stock_id, summary, comparison_markdown):
     )
 
     comp_runner = InMemoryRunner(agent=competitors_agent)
-    comp_prompt = f"""Please analyze the following financial data for {stock_id} and its competitors:\n\n{comparison_markdown}"""
+    comp_prompt = f"""
+    Please analyze the following data for {stock_id}:
+    
+    === [1] DCF Valuation Model Result ===
+    {valuation_text}
+    
+    === [2] Competitor Financial Ratios ===
+    {comparison_markdown}
+    """
     
     comp_response = await comp_runner.run_debug(comp_prompt)
     comp_text = "Competitor analysis failed or no output generated."

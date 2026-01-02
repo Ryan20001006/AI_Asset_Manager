@@ -8,7 +8,9 @@ import google.generativeai as genai
 import pandas_datareader.data as web
 import statsmodels.api as sm
 import asyncio
+import requests
 from database import get_db_connection
+from config import settings
 
 def download_and_store_fundamentals(stock_id):
     print(f"📥 正在下載 {stock_id} 的數據...")
@@ -297,6 +299,26 @@ def get_context_str(stock_id):
     finally:
         conn.close()
 
+def search_symbol_alpha_vantage(keyword: str):
+    print(f"🔍 [Backend 2] Search: {keyword}")
+    api_key = settings.ALPHA_VANTAGE_API_KEY
+    if not api_key: return []
+    try:
+        url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={keyword}&apikey={api_key}"
+        res = requests.get(url).json()
+        raw = res.get("bestMatches", [])
+        return [{
+            "symbol": i.get("1. symbol"),
+            "name": i.get("2. name"),
+            "type": i.get("3. type"),
+            "region": i.get("4. region"),
+            "currency": i.get("8. currency")
+        } for i in raw]
+    except Exception as e:
+        print(f"搜尋錯誤: {e}")
+        return []
+    
+    
 def get_competitor_dataframe_markdown(stock_id):
     """
     功能：抓取目標公司與競爭對手的財務數據，並轉為 Markdown 表格

@@ -330,3 +330,50 @@ with tab4:
             
     else:
         st.info("💡 Please go to **Tab 1** or use the **Search** sidebar to fetch data first.")
+    
+    st.divider()
+    
+    st.subheader("🔙 5-Year Return Backtest (vs S&P 500)")
+    
+    if st.button("Run Backtest"):
+        with st.spinner("Calculating historical returns..."):
+            try:
+                res = session.get(f"{BACKEND_URL}/api/backtest/{ticker}")
+                if res.status_code == 200:
+                    bt_data = res.json()
+                    
+                    if bt_data.get("status") == "success":
+                        metrics = bt_data['metrics']['stock']
+                        bench = bt_data['metrics']['benchmark']
+                        
+                        # 1. 顯示指標卡片
+                        col1, col2, col3, col4 = st.columns(4)
+                        col1.metric("Total Return", f"{metrics['total_return']:.2%}", delta=f"{metrics['total_return'] - bench['total_return']:.2%}")
+                        col2.metric("CAGR (Yearly)", f"{metrics['cagr']:.2%}")
+                        col3.metric("Max Drawdown", f"{metrics['max_drawdown']:.2%}")
+                        col4.metric("Sharpe Ratio", f"{metrics['sharpe_ratio']:.2f}")
+                        
+                        # 2. 畫圖 (累計報酬率)
+                        chart_data = pd.DataFrame(bt_data['chart_data'])
+                        
+                        # Altair 繪圖
+                        base = alt.Chart(chart_data).encode(x='date:T')
+                        
+                        line1 = base.mark_line(color='blue').encode(
+                            y=alt.Y('stock_cumulative', title='Cumulative Return'),
+                            tooltip=['date', 'stock_cumulative']
+                        ).properties(title=f"{ticker} Return")
+                        
+                        line2 = base.mark_line(color='gray', strokeDash=[5,5]).encode(
+                            y='benchmark_cumulative',
+                            tooltip=['date', 'benchmark_cumulative']
+                        ).properties(title="S&P 500 (Benchmark)")
+                        
+                        st.altair_chart((line1 + line2).interactive(), use_container_width=True)
+                        
+                    else:
+                        st.error(f"Backtest failed: {bt_data.get('message')}")
+                else:
+                    st.error("API Connection failed")
+            except Exception as e:
+                st.error(f"Error: {e}")
