@@ -33,8 +33,6 @@ def create_fundamental_tables():
         UNIQUE(Stock_Id, ReportYear, RatioName)
     );''')
     
-    # 4. AI 分析報告 (統一使用這張表)
-    # AnalysisContent 將包含完整的 Markdown 報告
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS AI_Analysis (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
